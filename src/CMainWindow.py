@@ -1,6 +1,6 @@
 #!/bin/python3
 # 
-# Copyright Florian Pfanner 2020
+# Copyright Florian Pfanner 2022
 #
 # This file is part of AudioPlayer.
 # 
@@ -45,16 +45,24 @@ fileDirName = os.path.dirname( os.path.abspath(__file__) )
 
 class CMainWindow( QWidget ):
 
-    def __init__( self, fullScreen=True, parent=None ):
+    def __init__( self, parent=None, splash=None ):
         super().__init__( parent )
 
         self._settings = QSettings( os.path.join( fileDirName, "../settings/settings.ini" ), QSettings.IniFormat )
         self._userData = QSettings()
 
+        print( "size: " + str( self._settings.value( "audioPlayer/windowSize" ) ) )
+
+        fullScreen = self._settings.value( "audioPlayer/maximized", 1 ) == 1
+
         self._audioLibrary = CAudioLibrary.CAudioLibrary( self._settings.value( "library/dirs" ),
                                                           self._settings.value( "library/audioExtension", [ ".mp3" ] ),
-                                                          self._settings.value( "library/imageExtension", [ ".png", ".jpg" ] ) )
+                                                          self._settings.value( "library/imageExtension", [ ".png", ".jpg" ] ),
+                                                          self,
+                                                          splash )
 
+        if splash is not None:
+            splash.showMessage( self.tr( "Create GUI" ) )
         self._player = CGuiAudioPlayer.CGuiAudioPlayer( self._audioLibrary, self._settings, self._userData )
         self._selector = CGuiAlbumSelector.CGuiAlbumSelector( self._audioLibrary, self._settings, self._userData )
 
@@ -63,30 +71,36 @@ class CMainWindow( QWidget ):
         mainLayout.addWidget( self._player, 1 )
         self.setLayout( mainLayout )
 
+        if splash is not None:
+            splash.showMessage( self.tr( "Load Images" ) )
         self._selector.loadImages()
+        print( "5" )
         self._selector.showAlbum()
 
         self._selector.playAlbumSignal.connect( self._player.playAlbum )
 
         self._selector.setFocus()
 
+        screens = QGuiApplication.screens()        
+        self.move( screens[0].geometry().topLeft() )        
+        settingsSize = self._settings.value( "audioPlayer/windowSize", None )
+        self.resize( settingsSize or screens[0].geometry().size() )
+        print( "6" )
         if fullScreen:
             self.setWindowFlags( Qt.CustomizeWindowHint | Qt.FramelessWindowHint )
             self.setWindowState( Qt.WindowFullScreen )
             self.showFullScreen()
             self.setCursor( Qt.BlankCursor )
-            screens = QGuiApplication.screens()
-            self.move( screens[0].geometry().topLeft() )
-            self.resize( screens[0].geometry().size() )
             self.setFixedSize( screens[0].geometry().size() )
         else:
-            self.resize( 500, 400 )
-            self.setFixedSize( QSize( 500, 400 ) )
+            if settingsSize is None:
+                self.showMaximized()
 
         self._timer = QTimer()
         self._timer.setInterval( 60000 )
         self._timer.timeout.connect( self._handleTimer )
         self._timer.start()
+        print( "7" )
 
 
     def keyPressEvent( self, event ):

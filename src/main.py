@@ -22,8 +22,11 @@
 
 
 from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QSplashScreen
 from PyQt5.QtCore import QCoreApplication
+from PyQt5.Qt import QPixmap
 import sys
+import os
 import time
 
 import CAudioLibrary
@@ -40,8 +43,14 @@ if __name__ == "__main__":
 
     while True:
         try:
-            g = CMainWindow.CMainWindow( "-d" not in sys.argv )
+            pixmap = QPixmap( os.path.join( os.path.dirname( os.path.abspath(__file__) ), "../images/splash.png" ) )
+            splash = QSplashScreen( pixmap )
+            splash.show()
+            app.processEvents()
+
+            g = CMainWindow.CMainWindow( None, splash )
             g.show()
+            splash.finish(g)
 
             sys.exit( app.exec_() )
         except Exception as e:

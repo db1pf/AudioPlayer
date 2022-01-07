@@ -21,12 +21,14 @@
 
 
 from PyQt5.QtWidgets import QLabel
+from PyQt5.QtWidgets import QSizePolicy
 from PyQt5.Qt import QPixmap
 from PyQt5.QtCore import Qt
 from PyQt5.QtCore import QEvent
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QSize
 import logging
 
 
@@ -41,6 +43,7 @@ class CGuiAlbumSelector( QLabel ):
         self._audioLibrary = audioLibrary
         self._settings = settings
         self._userData = userData
+        self._useCache = self._settings.value( "albumSelector/usecache", True )
         self._albumData = []
         self._curAlbum = 0
 
@@ -50,10 +53,12 @@ class CGuiAlbumSelector( QLabel ):
             if lastAlbumName == albumName:
                 print( "select album" )
                 self._curAlbum = len( self._albumData )
-            self._albumData.append( { "name": albumName, "image": None } )
+            self._albumData.append( { "name": albumName, "image": None, "image_error": False } )
 
         # setup UI
         self.setAlignment( Qt.AlignHCenter | Qt.AlignVCenter )
+        self.setSizePolicy( QSizePolicy.Preferred, QSizePolicy.Minimum )
+        self.setMinimumSize( QSize( 20, 20 ) )
         self.setWordWrap( True )
         font = self.font()
         font.setPointSize( int( self._settings.value( "albumSelector/fontSize", 20 ) ) )
@@ -71,27 +76,43 @@ class CGuiAlbumSelector( QLabel ):
 
 
 
-    def loadImages( self ):
-        """Build up internal database with images from audio library"""
-        for albumData in self._albumData:
-            if albumData["image"] is None:
-                imageSource = self._audioLibrary.getAlbumImageFilename( albumData["name"] )
-                if imageSource is not None:
-                    logging.info( "Load image {} for album {}".format( imageSource, albumData["name"] ) )
-                    try:
-                        p = QPixmap()
-                        if p.load( imageSource ):
+    def getImage( self, albumData ):
+        """Return image of an ablbum. Either take image from cache, if image is
+        not available in cache try to load from disc"""
+        res = None
+        if albumData["image"] is None and not albumData["image_error"]:
+            imageSource = self._audioLibrary.getAlbumImageFilename( albumData["name"] )
+            if imageSource is not None:
+                logging.info( "Load image {} for album {}".format( imageSource, albumData["name"] ) )
+                print( "Load image {} for album {}".format( imageSource, albumData["name"] ) )
+                try:
+                    p = QPixmap()
+                    if p.load( imageSource ):
+                        res = p
+                        if self._useCache == True:
                             albumData["image"] = p
-                    except Exception as e:
-                        logging.warning( "Could not load image from {}".format( imageSource ) )
+                except Exception as e:
+                    print( "Could not load image from {}: {}".format( imageSource ).format(e) )
+                    logging.error( "Could not load image from {}".format( imageSource ) )
+            albumData["image_error"] = self._useCache == True and albumData["image"] is None
+        else:
+            res = albumData["image"]
+        return res
+
+    def loadImages( self ):        
+        """Build up internal database with images from audio library"""
+        return
+        for albumData in self._albumData:
+            self.getImage( albumData )
 
 
     def showAlbum( self ):
         albumData = self._albumData[self._curAlbum]
         print( "show album: " + str( albumData ) )
         self.clear()
-        if albumData["image"] is not None:
-            self.setPixmap( albumData["image"].scaled( self.size(), Qt.KeepAspectRatio ) )
+        image = self.getImage( albumData )
+        if image is not None:
+            self.setPixmap( image.scaled( self.size(), Qt.KeepAspectRatio ) )
         else:
             self.setText( albumData["name"] )
 

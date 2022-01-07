@@ -24,6 +24,7 @@ import os
 import sys
 import logging
 
+from PyQt5.QtCore import QObject
 
 
 # self._album:
@@ -34,9 +35,10 @@ import logging
 
 
 
-class CAudioLibrary():
+class CAudioLibrary( QObject ):
 
-    def __init__( self, directoryList, audioExtensions=[".mp3"], imageExtensions=[".png", ".jpg"] ):
+    def __init__( self, directoryList, audioExtensions=[".mp3"], imageExtensions=[".png", ".jpg"], parent=None, splash=None ):
+        super().__init__( parent )
 
         if isinstance( directoryList, str ):
             directoryList = [ directoryList ]
@@ -52,7 +54,7 @@ class CAudioLibrary():
         self._album = {}
 
         for directory in directoryList:
-            self.__searchPath( directory, "" )
+            self.__searchPath( directory, "", splash )
 
 
     def __delete__( self ):
@@ -93,12 +95,14 @@ class CAudioLibrary():
         return ret
 
 
-    def __searchPath( self, directory, relPathName ):
+    def __searchPath( self, directory, relPathName, splash ):
         """Searches in given directory for media files. If the directory contains a file
         covered by self._fileFilter, the directory is appended to my album list. For
         each sub directory this function is called recursive"""
 
         logging.info( "Search in directory {} for files".format( directory ) )
+        if splash is not None:
+            splash.showMessage( self.tr( "Search in directory {} for audio files" ).format( relPathName ) )
 
         dirAlbum = { "path": directory,
                      "image": [],
@@ -115,7 +119,7 @@ class CAudioLibrary():
                     dirAlbum["image"].append( entry )
 
             elif os.path.isdir( entryPathName ):
-                self.__searchPath( os.path.join( directory, entry ), os.path.join( relPathName, entry ) )
+                self.__searchPath( os.path.join( directory, entry ), os.path.join( relPathName, entry ), splash )
 
         if len( dirAlbum["files"] ) > 0:
             dirAlbum["files"].sort()
