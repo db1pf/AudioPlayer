@@ -44,7 +44,7 @@ class CAudioPlayer():
         self.__eventsCount = 0
 
 
-    def __delete__( self ):
+    def __del__( self ):
         if not self.isStopped():
             self.stop()
 
@@ -58,7 +58,8 @@ class CAudioPlayer():
         an exception is thrown. If currently another album is playing,
         it stops and the new one starts"""
 
-        albumFiles = self.__audioLibrary.getAlbumFiles( albumName )
+        album = self.__audioLibrary.getAlbum( albumName )
+        albumFiles = album.getAudioFiles()
         if not self.isStopped():
             self.stop()
         self.__eventsCount = 0
@@ -107,11 +108,12 @@ class CAudioPlayer():
     def isStopped( self ):
         return self.__player.get_state() == vlc.State.Stopped
 
+
     def isPause( self ):
         return self.__player.get_state() == vlc.State.Paused
 
+
     def getTrackCount( self ):
-        #return self.__player.audio_get_track_count()
         return self.__curMediaList.count()
 
 
@@ -133,13 +135,16 @@ class CAudioPlayer():
         """Return time of current track in s"""
         return self.__player.get_time() / 1000.0
 
+
     def getLength( self ):
         """Return length of current track in s"""
         return self.__player.get_length() / 1000.0
 
+
     def getPosition( self ):
         """Return position of current track in percent 0 ... 1.0"""
         return self.__player.get_position()
+
 
     def setPosition( self, pos ):
         """Set playback position of current track in percent 0 ... 1.0"""

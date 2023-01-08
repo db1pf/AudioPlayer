@@ -43,17 +43,9 @@ class CGuiAlbumSelector( QLabel ):
         self._audioLibrary = audioLibrary
         self._settings = settings
         self._userData = userData
-        self._useCache = self._settings.value( "albumSelector/usecache", True )
-        self._albumData = []
-        self._curAlbum = 0
 
-        lastAlbumName = self._userData.value( "albumSelector/last", "" )
-
-        for albumName in self._audioLibrary.getAlbumList():
-            if lastAlbumName == albumName:
-                print( "select album" )
-                self._curAlbum = len( self._albumData )
-            self._albumData.append( { "name": albumName, "image": None, "image_error": False } )
+        self._curAlbumName = self._userData.value( "albumSelector/last", "" )
+        self._curAlbum = None
 
         # setup UI
         self.setAlignment( Qt.AlignHCenter | Qt.AlignVCenter )
@@ -67,7 +59,7 @@ class CGuiAlbumSelector( QLabel ):
 
         self.showAlbum()
 
-        self._curPlay = None
+        self._curPlayName = None
         self._timer = QTimer()
         self._timer.setInterval( 10000 )
         self._timer.timeout.connect( self._handleTimer )
@@ -75,70 +67,39 @@ class CGuiAlbumSelector( QLabel ):
         self._mousePressPos = None
 
 
-
-    def getImage( self, albumData ):
-        """Return image of an ablbum. Either take image from cache, if image is
-        not available in cache try to load from disc"""
-        res = None
-        if albumData["image"] is None and not albumData["image_error"]:
-            imageSource = self._audioLibrary.getAlbumImageFilename( albumData["name"] )
-            if imageSource is not None:
-                logging.info( "Load image {} for album {}".format( imageSource, albumData["name"] ) )
-                print( "Load image {} for album {}".format( imageSource, albumData["name"] ) )
-                try:
-                    p = QPixmap()
-                    if p.load( imageSource ):
-                        res = p
-                        if self._useCache == True:
-                            albumData["image"] = p
-                except Exception as e:
-                    print( "Could not load image from {}: {}".format( imageSource ).format(e) )
-                    logging.error( "Could not load image from {}".format( imageSource ) )
-            albumData["image_error"] = self._useCache == True and albumData["image"] is None
-        else:
-            res = albumData["image"]
-        return res
-
-    def loadImages( self ):        
-        """Build up internal database with images from audio library"""
-        return
-        for albumData in self._albumData:
-            self.getImage( albumData )
-
-
     def showAlbum( self ):
-        albumData = self._albumData[self._curAlbum]
-        print( "show album: " + str( albumData ) )
+        logging.info( "Show album {}".format( self._curAlbumName ) )
+        self._curAlbum = self._audioLibrary.getAlbum( self._curAlbumName )
+        if self._curAlbum is None:
+            self._curAlbumName = self._audioLibrary.getNextAlbum( "" )      # use first one
+            self._curAlbum = self._audioLibrary.getAlbum( self._curAlbumName )
+            logging.info( "Album not found, use first one {}".format( self._curAlbumName ) )
+
         self.clear()
-        image = self.getImage( albumData )
+        image = self._curAlbum.getImage( 0, self.size() )
         if image is not None:
             self.setPixmap( image.scaled( self.size(), Qt.KeepAspectRatio ) )
         else:
-            self.setText( albumData["name"] )
+            self.setText( self._curAlbum.getName() )
 
 
     def nextAlbum( self ):
-        self._curAlbum = self._curAlbum + 1
-        if self._curAlbum >= len( self._albumData ):
-            self._curAlbum = 0
+        self._curAlbumName = self._audioLibrary.getNextAlbum( self._curAlbumName )
         self.showAlbum()
         self._timer.start()
 
 
     def previousAlbum( self ):
-        self._curAlbum = self._curAlbum - 1
-        if self._curAlbum < 0:
-            self._curAlbum = len( self._albumData ) - 1
+        self._curAlbumName = self._audioLibrary.getPrevAlbum( self._curAlbumName )
         self.showAlbum()
         self._timer.start()
 
 
     def selectAlbum( self ):
-        albumName = self._albumData[self._curAlbum]
-        print( "Album selected: " + str( albumName ) )
-        self.playAlbumSignal.emit( albumName["name"] )
-        self._userData.setValue( "albumSelector/last", albumName["name"] )
-        self._curPlay = self._curAlbum
+        print( "Album selected: {}".format( self._curAlbumName ) )
+        self.playAlbumSignal.emit( self._curAlbumName )
+        self._userData.setValue( "albumSelector/last", self._curAlbumName )
+        self._curPlayName = self._curAlbumName
 
 
     def resizeEvent( self, event ):
@@ -175,10 +136,21 @@ class CGuiAlbumSelector( QLabel ):
 
     @pyqtSlot()
     def _handleTimer( self ):
-        if self._curPlay is not None:
-            self._curAlbum = self._curPlay
+        if self._curPlayName is not None:
+            # reset selector to album currently playing
+            self._curAlbumName = self._curPlayName
             self.showAlbum()
         self._timer.stop()
+
+
+    @pyqtSlot()
+    def jumpAlbum( self, albumName ):
+        """Jump to given album and just show it
+        """
+        logging.debug( "Jump to album {}".format( albumName ) )
+        self._curAlbumName = albumName
+        self.showAlbum()
+        self._timer.start()
 
 
     def keyPressEvent( self, event ):

@@ -28,6 +28,7 @@ from PyQt5.Qt import QPixmap
 import sys
 import os
 import time
+import logging
 
 import CAudioLibrary
 import CMainWindow
@@ -35,6 +36,8 @@ import CMainWindow
 
 
 if __name__ == "__main__":
+
+    logging.basicConfig( level=logging.DEBUG )
 
     QCoreApplication.setOrganizationName( "Pfanner" )
     QCoreApplication.setApplicationName( "AudioPlayer" )
@@ -54,6 +57,6 @@ if __name__ == "__main__":
 
             sys.exit( app.exec_() )
         except Exception as e:
-            print( "Exception: " + str( e ) )
+            logging.exception( "Main execption" )
         time.sleep( 5 )
 

@@ -23,6 +23,7 @@
 
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QVBoxLayout
+from PyQt5.QtWidgets import QHBoxLayout
 from PyQt5.QtGui import QGuiApplication
 from PyQt5.QtCore import Qt
 from PyQt5.QtCore import QSize
@@ -38,6 +39,7 @@ import os
 import CAudioLibrary
 import CGuiAudioPlayer
 import CGuiAlbumSelector
+import CGuiAlbumGroupSelector
 
 
 fileDirName = os.path.dirname( os.path.abspath(__file__) )
@@ -51,41 +53,32 @@ class CMainWindow( QWidget ):
         self._settings = QSettings( os.path.join( fileDirName, "../settings/settings.ini" ), QSettings.IniFormat )
         self._userData = QSettings()
 
-        print( "size: " + str( self._settings.value( "audioPlayer/windowSize" ) ) )
-
         fullScreen = self._settings.value( "audioPlayer/maximized", 1 ) == 1
 
-        self._audioLibrary = CAudioLibrary.CAudioLibrary( self._settings.value( "library/dirs" ),
-                                                          self._settings.value( "library/audioExtension", [ ".mp3" ] ),
-                                                          self._settings.value( "library/imageExtension", [ ".png", ".jpg" ] ),
-                                                          self,
-                                                          splash )
+        self._audioLibrary = CAudioLibrary.CAudioLibrary( self._settings, self._userData, self, splash )
 
         if splash is not None:
             splash.showMessage( self.tr( "Create GUI" ) )
         self._player = CGuiAudioPlayer.CGuiAudioPlayer( self._audioLibrary, self._settings, self._userData )
         self._selector = CGuiAlbumSelector.CGuiAlbumSelector( self._audioLibrary, self._settings, self._userData )
+        self._groupSelector = CGuiAlbumGroupSelector.CGuiAlbumGroupSelector( self._audioLibrary, self._settings, self._userData )
+
+        selectorLayout = QHBoxLayout()
+        selectorLayout.addWidget( self._groupSelector, 1 )
+        selectorLayout.addWidget( self._selector, 100 )
 
         mainLayout = QVBoxLayout()
-        mainLayout.addWidget( self._selector, 100 )
+        mainLayout.addLayout( selectorLayout, 100 )
         mainLayout.addWidget( self._player, 1 )
         self.setLayout( mainLayout )
 
-        if splash is not None:
-            splash.showMessage( self.tr( "Load Images" ) )
-        self._selector.loadImages()
-        print( "5" )
-        self._selector.showAlbum()
-
         self._selector.playAlbumSignal.connect( self._player.playAlbum )
-
         self._selector.setFocus()
 
         screens = QGuiApplication.screens()        
         self.move( screens[0].geometry().topLeft() )        
         settingsSize = self._settings.value( "audioPlayer/windowSize", None )
         self.resize( settingsSize or screens[0].geometry().size() )
-        print( "6" )
         if fullScreen:
             self.setWindowFlags( Qt.CustomizeWindowHint | Qt.FramelessWindowHint )
             self.setWindowState( Qt.WindowFullScreen )
@@ -100,7 +93,6 @@ class CMainWindow( QWidget ):
         self._timer.setInterval( 60000 )
         self._timer.timeout.connect( self._handleTimer )
         self._timer.start()
-        print( "7" )
 
 
     def keyPressEvent( self, event ):
