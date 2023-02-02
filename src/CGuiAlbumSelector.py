@@ -59,6 +59,8 @@ class CGuiAlbumSelector( QLabel ):
 
         self.showAlbum()
 
+        self._audioLibrary.contentChanged.connect( self.showAlbum )             # in case cache has changed also update my image
+
         self._curPlayName = None
         self._timer = QTimer()
         self._timer.setInterval( 10000 )
@@ -80,7 +82,7 @@ class CGuiAlbumSelector( QLabel ):
         if image is not None:
             self.setPixmap( image.scaled( self.size(), Qt.KeepAspectRatio ) )
         else:
-            self.setText( self._curAlbum.getName() )
+            self.setText( self._curAlbum.getDisplayName() )
 
 
     def nextAlbum( self ):
@@ -134,7 +136,6 @@ class CGuiAlbumSelector( QLabel ):
         super().mouseReleaseEvent( event )
 
 
-    @pyqtSlot()
     def _handleTimer( self ):
         if self._curPlayName is not None:
             # reset selector to album currently playing
@@ -143,7 +144,6 @@ class CGuiAlbumSelector( QLabel ):
         self._timer.stop()
 
 
-    @pyqtSlot()
     def jumpAlbum( self, albumName ):
         """Jump to given album and just show it
         """

@@ -72,6 +72,7 @@ class CMainWindow( QWidget ):
         mainLayout.addWidget( self._player, 1 )
         self.setLayout( mainLayout )
 
+        self._groupSelector.jumpAlbum.connect( self._selector.jumpAlbum )
         self._selector.playAlbumSignal.connect( self._player.playAlbum )
         self._selector.setFocus()
 
